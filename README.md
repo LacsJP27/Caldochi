@@ -9,229 +9,88 @@ I want to learn more about web development. I plan my day every day manually in 
 Learning targets are tracked in [learning-goals.md](learning-goals.md), and the
 architecture below is chosen to exercise them.
 
-## Requirements
+## Requirements for v1
 
 - support different calender views (day/month/year)
 - send reminders to users about event
-- multi user support (later)
 - event view for details
 - export/import events
 - a planning algorithm to suggest daily schedule
 
+## Requirements for v2
+
+- multi-user support
+  - shared calendars
+  - rsvps
+
 ## Data model
 
-```sql
--- Supabase Auth owns auth.users (credentials, sessions, verification, reset).
--- This table is the application-side profile, sharing its primary key.
-CREATE TABLE profiles (
-  id             uuid        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email          text        NOT NULL UNIQUE,   -- mirrored from auth.users; kept in sync by trigger
-  display_name   text,                          -- may be absent at signup
-  timezone       text        NOT NULL DEFAULT 'UTC',   -- IANA, e.g. 'America/New_York'
-  week_start     smallint    NOT NULL DEFAULT 0,       -- 0=Sun … 6=Sat, matches JS getDay()
-  created_at     timestamptz NOT NULL DEFAULT now(),
-  updated_at     timestamptz NOT NULL DEFAULT now(),
+Key attributes and relationships (PK = primary key, FK = foreign key).
+Supabase Auth manages accounts; each profile shares its account's ID.
 
-  CONSTRAINT week_start_valid CHECK (week_start BETWEEN 0 AND 6)
-);
+```mermaid
+erDiagram
+    profiles ||--o{ calendars : owns
+    calendars ||--o{ events : contains
+    events ||--o{ event_exceptions : overrides
+    events ||--o{ reminders : has
 
-CREATE TABLE calendars (
-  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id    uuid        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  name        text        NOT NULL,
-  color       text        NOT NULL DEFAULT '#3b82f6',
-  timezone    text,                                   -- default for new events; NULL = use owner's
-  kind        text        NOT NULL DEFAULT 'personal',
-  is_default  boolean     NOT NULL DEFAULT false,
-  is_visible  boolean     NOT NULL DEFAULT true,      -- the show/hide layer toggle
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  updated_at  timestamptz NOT NULL DEFAULT now(),
+    profiles {
+        uuid id PK "Also references Supabase Auth"
+        string display_name
+        string timezone
+        int week_start
+    }
 
-  CONSTRAINT kind_valid  CHECK (kind IN ('personal', 'suggested', 'imported')),
-  CONSTRAINT color_valid CHECK (color ~ '^#[0-9a-fA-F]{6}$'),
-  UNIQUE (owner_id, name)
-);
+    calendars {
+        uuid id PK
+        uuid owner_id FK
+        string name
+        string color
+        string kind "personal, suggested, imported"
+        boolean is_default
+    }
 
--- Exactly one default calendar per user, enforced by the database:
-CREATE UNIQUE INDEX one_default_per_user
-  ON calendars (owner_id) WHERE is_default;
+    events {
+        uuid id PK
+        uuid calendar_id FK
+        string title
+        boolean all_day
+        datetime starts_at "Timed events"
+        int duration_minutes "Timed events"
+        date start_date "All-day events"
+        int duration_days "All-day events"
+        string timezone
+        string rrule "Optional recurrence rule"
+        string transparency "Blocks time or not"
+        string status
+        string ical_uid "Import/export identity"
+    }
 
-CREATE TABLE events (
-  id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  calendar_id       uuid        NOT NULL REFERENCES calendars(id) ON DELETE CASCADE,
+    event_exceptions {
+        uuid id PK
+        uuid event_id FK
+        datetime original_start "Identifies the occurrence"
+        string kind "modified or cancelled"
+        string title "Optional override"
+        datetime starts_at "Optional override"
+        int duration_minutes "Optional override"
+    }
 
-  title             text        NOT NULL,
-  description       text,
-  location          text,
-
-  -- ---- TIME ----
-  all_day           boolean     NOT NULL DEFAULT false,
-  starts_at         timestamptz,        -- timed events: instant of FIRST occurrence
-  duration_minutes  integer,            -- timed events
-  start_date        date,               -- all-day events: a DATE, never an instant
-  duration_days     integer,            -- all-day events
-  timezone          text        NOT NULL,   -- IANA; the zone recurrence expands in
-
-  -- ---- RECURRENCE ----
-  rrule             text,               -- NULL = single event
-  rdates            timestamptz[],      -- extra one-off additions (RDATE)
-  recurrence_end_at timestamptz,        -- DERIVED; NULL = infinite series
-
-  -- ---- SEMANTICS ----
-  transparency      text        NOT NULL DEFAULT 'opaque',  -- opaque = blocks time, you are busy, transparent occupies no time, inherited from iCalendar standard
-  status            text        NOT NULL DEFAULT 'confirmed', -- i.e., confirmed, tentative, cancelled
-
-  -- ---- ICS ROUND-TRIP ----
-  ical_uid          text        NOT NULL,   -- UID from the .ics file
-  sequence          integer     NOT NULL DEFAULT 0,
-
-  created_by        uuid        REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at        timestamptz NOT NULL DEFAULT now(),
-  updated_at        timestamptz NOT NULL DEFAULT now(),
-
-  -- Two users may legitimately hold copies of the same imported event,
-  -- so UID is unique per calendar, not globally:
-  UNIQUE (calendar_id, ical_uid),
-
-  CONSTRAINT transparency_valid CHECK (transparency IN ('opaque', 'transparent')),
-  CONSTRAINT status_valid       CHECK (status IN ('confirmed', 'tentative', 'cancelled')),
-  CONSTRAINT duration_positive  CHECK (
-    (duration_minutes IS NULL OR duration_minutes > 0) AND
-    (duration_days    IS NULL OR duration_days    > 0)
-  ),
-
-  -- Exactly one of the two time shapes must be filled in:
-  CONSTRAINT time_shape CHECK (
-    (all_day = false
-      AND starts_at  IS NOT NULL AND duration_minutes IS NOT NULL
-      AND start_date IS     NULL AND duration_days    IS     NULL)
-    OR
-    (all_day = true
-      AND start_date IS NOT NULL AND duration_days    IS NOT NULL
-      AND starts_at  IS     NULL AND duration_minutes IS     NULL)
-  )
-);
-
-CREATE INDEX events_calendar_start  ON events (calendar_id, starts_at);
-CREATE INDEX events_calendar_date   ON events (calendar_id, start_date);
-CREATE INDEX events_recurring       ON events (calendar_id) WHERE rrule IS NOT NULL;
-
-CREATE TABLE event_exceptions (
-  id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id          uuid        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-
-  original_start    timestamptz NOT NULL,   -- RECURRENCE-ID: WHICH instance this is about
-  kind            text        NOT NULL,
-
-  -- Overrides. NULL means "inherit from the series".
-  title             text,
-  description       text,
-  location          text,
-  starts_at         timestamptz,
-  duration_minutes  integer,
-
-  created_at        timestamptz NOT NULL DEFAULT now(),
-  updated_at        timestamptz NOT NULL DEFAULT now(),
-
-  CONSTRAINT status_valid CHECK (status IN ('modified', 'cancelled')),
-  UNIQUE (event_id, original_start)
-);
-
-CREATE TABLE reminders (
-  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id       uuid        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  minutes_before integer     NOT NULL,        -- 30 = 30 min before; negative = after start
-  method         text        NOT NULL,
-  created_at     timestamptz NOT NULL DEFAULT now(),
-
-  CONSTRAINT method_valid CHECK (method IN ('push', 'email', 'in_app')),
-  UNIQUE (event_id, minutes_before, method)
-);
-
--- ---------------------------------------------------------------------------
--- Row Level Security
---
--- Supabase exposes these tables directly over its API, so RLS *is* the
--- authorization layer, not an optional hardening step. auth.uid() reads the
--- current user id from the request JWT.
--- ---------------------------------------------------------------------------
-
-ALTER TABLE profiles         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE calendars        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE events           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_exceptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reminders        ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY own_profile ON profiles
-  FOR ALL USING (id = (SELECT auth.uid())) WITH CHECK (id = (SELECT auth.uid()));
-
-CREATE POLICY own_calendars ON calendars
-  FOR ALL USING (owner_id = (SELECT auth.uid())) WITH CHECK (owner_id = (SELECT auth.uid()));
-
-CREATE POLICY own_events ON events
-  FOR ALL USING (EXISTS (
-    SELECT 1 FROM calendars c
-    WHERE c.id = events.calendar_id AND c.owner_id = (SELECT auth.uid())
-  ));
-
--- Two hops from the user (-> events -> calendars). If these get slow, the fix
--- is denormalizing user_id onto the table so the policy can use an index.
-CREATE POLICY own_event_exceptions ON event_exceptions
-  FOR ALL USING (EXISTS (
-    SELECT 1 FROM events e
-    JOIN calendars c ON c.id = e.calendar_id
-    WHERE e.id = event_exceptions.event_id AND c.owner_id = (SELECT auth.uid())
-  ));
-
-CREATE POLICY own_reminders ON reminders
-  FOR ALL USING (EXISTS (
-    SELECT 1 FROM events e
-    JOIN calendars c ON c.id = e.calendar_id
-    WHERE e.id = reminders.event_id AND c.owner_id = (SELECT auth.uid())
-  ));
-
--- ---------------------------------------------------------------------------
--- Signup: Supabase inserts into auth.users and stops. These triggers create
--- the profile plus a default calendar, and keep the mirrored email in sync.
--- ---------------------------------------------------------------------------
-
-CREATE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = ''
-AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, display_name)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
-
-  INSERT INTO public.calendars (owner_id, name, is_default)
-  VALUES (NEW.id, 'Personal', true);
-
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-CREATE FUNCTION public.handle_user_email_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = ''
-AS $$
-BEGIN
-  UPDATE public.profiles SET email = NEW.email, updated_at = now()
-  WHERE id = NEW.id;
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_email_changed
-  AFTER UPDATE OF email ON auth.users
-  FOR EACH ROW WHEN (OLD.email IS DISTINCT FROM NEW.email)
-  EXECUTE FUNCTION public.handle_user_email_change();
+    reminders {
+        uuid id PK
+        uuid event_id FK
+        int minutes_before
+        string method "push, email, in_app"
+    }
 ```
+
+**Occurrences are calculated, not stored**, so they have no table in this diagram.
+The database stores the event's recurrence rule and any exceptions. When a date
+range is requested, those records generate the individual occurrences in memory. See `The core read: occurrences, not events` section
+
+Signup creates a profile and a default calendar. RLS restricts access to the
+owner's data. Planner entities are described in [planning-algorithm.md](planning-algorithm.md#data-model).
 
 ## API Surface
 
@@ -251,30 +110,13 @@ be expressed as table CRUD**:
 Everything in the right column either returns something that isn't a table row, or
 writes several rows in one transaction.
 
-### Endpoints
-
-```
-GET    /api/occurrences?start&end&calendarIds   expanded instances (core read)
-GET    /api/events/:id                          series detail + exceptions + reminders
-POST   /api/events                              create (reminders inline in payload)
-PATCH  /api/events/:id                          scoped edit — see below
-DELETE /api/events/:id                          scoped delete — see below
-
-POST   /api/calendars/:id/import                multipart .ics upload
-GET    /api/calendars/:id/export.ics            text/calendar download
-
--- planner, later --
-POST   /api/plans/generate                      { date } -> suggested blocks
-GET    /api/plans/:date
-POST   /api/plans/:id/blocks/:blockId/accept    commits a block to a real event
-```
-
 ### The core read: occurrences, not events
 
-`/api/occurrences` is deliberately not named `/events`. It does not return event
-rows — a weekly standup is **one row and fifty-two occurrences**. The handler
-fetches candidate series (the `recurrence_end_at` range query), expands them with
-`rrule.js`, applies `event_exceptions`, and returns flattened instances:
+The calendar displays individual occurrences within the selected date range.
+A weekly standup is stored as **one event**, but appears once for each week.
+To build the view, the app calculates occurrences in memory for that date range,
+applies any changes or cancellations, and returns the details below. These results
+are sent to the calendar view without creating new database rows:
 
 ```json
 {
@@ -294,14 +136,6 @@ fetches candidate series (the `recurrence_end_at` range query), expands them wit
 	]
 }
 ```
-
-Two properties of this shape matter:
-
-- **An occurrence has no id of its own.** It is not a row. Its identity is the
-  composite `(eventId, occurrenceStart)` — i.e. `UID` + `RECURRENCE-ID`.
-- **`occurrenceStart` and `start` can differ.** `occurrenceStart` is where the rule
-  said the instance goes; `start` is where it actually is after an override. The
-  client must send `occurrenceStart` back to identify _which_ instance it means.
 
 ### Editing a recurring event: three scopes
 
@@ -368,16 +202,18 @@ API is a service we write rather than generated, and why hosting takes a Dockerf
       |  worker  reminder cron    |  --+  two process types
       +---------------------------+
                   |
-                  |  postgres://  (privileged role)
+                  |  postgres://  (separate API and worker roles)
                   v
       Supabase — Postgres + Auth          managed
 ```
 
 - **SPA** has no server of its own, so the API boundary cannot quietly blur.
 - **api** owns everything table CRUD cannot express: recurrence expansion, the three
-  edit scopes, `.ics` import/export, plan generation.
+  edit scopes, `.ics` import/export, plan generation. Ordinary requests execute
+  with the verified user's identity under RLS.
 - **worker** exists because a reminder must fire at 8:30am with no browser open.
   That requirement alone forces a backend, independent of any learning goal.
+  It uses separate credentials and narrowly granted reminder-processing access.
 - **Supabase** keeps Postgres and Auth. Auth is the one component not worth
   hand-rolling; everything else stays a learning surface.
 
@@ -437,13 +273,11 @@ all. Keeping them separate means the dangerous step is always a deliberate one.
 
 ### Authorization
 
-The API connects with a privileged role, so **RLS no longer enforces anything on
-this path** — it stays enabled as a backstop for anon and direct access.
-
-That moves authorization into application code, and names the failure mode
-precisely: **a forgotten `WHERE owner_id = ...` is a data leak.** So no route builds
-a query directly. Every read goes through a scoped helper that takes the caller's
-user id and cannot be constructed without one.
+**Decision: use user-scoped access with row-level security (RLS) for ordinary
+requests.** Supabase Auth verifies identity, and PostgreSQL policies ensure users
+can only read or change their own data. Fastify passes the verified user's identity
+to each database transaction using a role that cannot bypass RLS. The reminder
+worker uses separate credentials with limited permissions for background work.
 
 ### Testing
 
@@ -453,9 +287,6 @@ user id and cannot be constructed without one.
 | Integration | Vitest + Postgres in Docker | API endpoints end to end, plus the constraints and RLS policies unit tests cannot reach |
 | E2E         | Playwright                  | a few happy paths only                                                                  |
 
-Recurrence expansion is the best unit-testing subject in the project: a pure
-function with brutal edge cases, most of them already written down in this README —
-DST boundaries, `FREQ=MONTHLY` on Jan 31, leap day, infinite series, `BYSETPOS`.
 
 **Rule: every recurrence bug becomes a failing test before it is fixed.**
 
