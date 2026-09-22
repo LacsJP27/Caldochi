@@ -1,10 +1,10 @@
 # Caldochi
 
-A calendar app with a planning algorithm based on your goals and hobbies to suggest a daily itinerary
+A calendar app with a planning algorithm based on your activities and commitments to suggest a daily itinerary
 
 ## Problem and Scope
 
-I want to learn more about web development. I plan my day every day manually in the calendar app, but I want to see suggestions for a daily plan. The aim of this calendar app is to first teach me more about web development and second to have suggested daily schedules to keep me moving towards my goals.
+I want to learn more about web development. I plan my day every day manually in the calendar app, but I want to see suggestions for a daily plan. The aim of this calendar app is to first teach me more about web development and second to have suggested daily schedules for the activities I want to do.
 
 Learning targets are tracked in [learning-goals.md](learning-goals.md), and the
 architecture below is chosen to exercise them.
