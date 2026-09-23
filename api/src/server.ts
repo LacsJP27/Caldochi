@@ -1,12 +1,12 @@
 import { buildApp } from './app.js';
+import { loadConfig } from './config.js';
 
 const app = buildApp();
-const port = Number(process.env.PORT ?? 3000);
-const host = process.env.HOST ?? '127.0.0.1';
+const config = loadConfig();
 
 try {
-  await app.listen({ port, host });
+	await app.listen({ port: config.port, host: config.host });
 } catch (error) {
-  app.log.error(error);
-  process.exit(1);
+	app.log.error(error);
+	process.exit(1);
 }
