@@ -10,31 +10,30 @@ describe('loadConfig', () => {
 	});
 
 	it('loads the configuration from environment variables', () => {
-		process.env.PORT = '4000';
-		process.env.HOST = 'example.com';
-
-		const config = loadConfig();
+		const config = loadConfig({
+			PORT: '4000',
+			HOST: 'example.com',
+		});
 
 		expect(config.port).toBe(4000);
 		expect(config.host).toBe('example.com');
 	});
 
 	it('throws an error for invalid port values', () => {
-		process.env.PORT = 'invalid';
+		expect(() => loadConfig({ PORT: 'invalid' })).toThrow('Invalid port');
+	});
 
-		expect(() => loadConfig()).toThrow('Invalid port');
+	it('throws an error for non-integer port values', () => {
+		expect(() => loadConfig({ PORT: '3000.5' })).toThrow('Invalid port');
 	});
 
 	it('throws an error for invalid host values', () => {
-		process.env.PORT = '4000';
-		process.env.HOST = 'invalid host';
-
-		expect(() => loadConfig()).toThrow('Invalid host');
+		expect(() =>
+			loadConfig({ PORT: '4000', HOST: 'invalid host' }),
+		).toThrow('Invalid host');
 	});
 
 	it('throws an error for empty host values', () => {
-		process.env.HOST = '';
-
-		expect(() => loadConfig()).toThrow('Empty host');
+		expect(() => loadConfig({ HOST: '' })).toThrow('Invalid host');
 	});
 });
