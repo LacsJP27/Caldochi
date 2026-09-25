@@ -56,7 +56,7 @@ erDiagram
         uuid calendar_id FK
         string title
         boolean all_day
-        datetime starts_at "Timed events"
+        datetime start_time "Timed events"
         int duration_minutes "Timed events"
         date start_date "All-day events"
         int duration_days "All-day events"
@@ -73,7 +73,7 @@ erDiagram
         datetime original_start "Identifies the occurrence"
         string kind "modified or cancelled"
         string title "Optional override"
-        datetime starts_at "Optional override"
+        datetime start_time "Optional override"
         int duration_minutes "Optional override"
     }
 

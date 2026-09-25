@@ -2,7 +2,10 @@ Todo: App Scaffolding
 ✔ Vite + React Scaffold @done(26-09-22 18:43)
 ✔ Fastify API package scaffold @done(26-09-23)
 ☐ API routes, auth, and database integration @started(26-09-23 10:57)
-☐ Database Scaffold
+    ☐ database schema + migration @started(26-09-25 16:15)
+    ☐ kysely database connection
+    ☐ supabase auth verification + RLS
+    ☐ first authenticated API route
 ☐ Docker container
 ☐ Host with Fly.io
 ☐ CI/CD Pipeline
