@@ -191,20 +191,21 @@ API is a service we write rather than generated, and why hosting takes a Dockerf
 
 ### Topology
 
-```
-      browser — Vite + React SPA          static files
-                  |
-                  |  HTTPS · JSON · Authorization: Bearer <supabase JWT>
-                  v
-      +---------------------------+
-      |  api     Fastify + Kysely |  --+
-      +---------------------------+    |  ONE Docker image,
-      |  worker  reminder cron    |  --+  two process types
-      +---------------------------+
-                  |
-                  |  postgres://  (separate API and worker roles)
-                  v
-      Supabase — Postgres + Auth          managed
+```mermaid
+flowchart LR
+    browser["Browser<br/>Vite + React SPA<br/>(static files)"]
+
+    subgraph docker["ONE Docker image"]
+        direction TB
+        api["api<br/>Fastify + Kysely"]
+        worker["worker<br/>reminder cron"]
+    end
+
+    supabase[("Supabase<br/>Postgres + Auth<br/>(managed)")]
+
+    browser -->|"HTTPS · JSON<br/>Authorization: Bearer Supabase JWT"| api
+    api -->|"postgres://<br/>API role + RLS"| supabase
+    worker -->|"postgres://<br/>separate worker role"| supabase
 ```
 
 - **SPA** has no server of its own, so the API boundary cannot quietly blur.
