@@ -2,8 +2,10 @@ Todo: App Scaffolding
 ✔ Vite + React Scaffold @done(26-09-22 18:43)
 ✔ Fastify API package scaffold @done(26-09-23)
 ☐ API routes, auth, and database integration @started(26-09-23 10:57)
-    ☐ database schema + migration @started(26-09-25 16:15)
-        ☐ rls policies @started(26-09-27 15:13)
+    ✔ database schema + migration @started(26-09-25 16:15) @done(26-09-27 20:46) @lasted(2d4h31m57s)
+        ✔ rls policies @started(26-09-27 15:13) @done(26-09-27 20:26) @lasted(5h13m13s)
+        ✔ grant table priveleges @started(26-09-27 20:29) @done(26-09-27 20:38) @lasted(9m44s)
+        ✔ security verification @started(26-09-27 20:46) @done(26-09-27 20:46) @lasted(50s)
     ☐ kysely database connection
     ☐ supabase auth verification + RLS
     ☐ first authenticated API route
