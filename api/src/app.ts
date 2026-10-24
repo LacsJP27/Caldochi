@@ -1,12 +1,21 @@
 import Fastify from 'fastify';
 import { healthRoutes } from './routes/health.js';
+import { Database } from './db/types.js';
+import type { Kysely } from 'kysely';
 
-export function buildApp() {
+declare module 'fastify' {
+	interface FastifyInstance {
+		db: Kysely<Database>;
+	}
+}
+
+export function buildApp(db: Kysely<Database>) {
 	const app = Fastify({
 		logger: true,
 	});
 
 	app.register(healthRoutes, { prefix: '/api' });
+	app.decorate('db', db);
 
 	app.setNotFoundHandler((request, reply) => {
 		const msg = {
@@ -30,6 +39,11 @@ export function buildApp() {
 		};
 		request.log.error({ err: error }, 'Unhandled request error');
 		reply.status(500).send(msg);
+	});
+
+	app.addHook('onClose', async (instance) => {
+		// Some code
+		await instance.db.destroy();
 	});
 
 	return app;

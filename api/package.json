@@ -12,10 +12,12 @@
 	},
 	"dependencies": {
 		"fastify": "^5.12.5",
-		"kysely": "^0.28.17"
+		"kysely": "^0.28.17",
+		"pg": "^8.23.1"
 	},
 	"devDependencies": {
 		"@types/node": "^24.13.3",
+		"@types/pg": "^8.23.1",
 		"tsx": "^4.20.6",
 		"typescript": "~6.0.2",
 		"vitest": "^4.1.11"

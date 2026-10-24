@@ -11,6 +11,5 @@
 		"build": "npm run build --workspaces",
 		"test": "npm --workspace @caldochi/api test",
 		"typecheck": "npm --workspace @caldochi/api run typecheck"
-	},
-	"dependencies": {}
+	}
 }

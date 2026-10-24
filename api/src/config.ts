@@ -1,11 +1,27 @@
 export type AppConfig = {
 	port: number;
 	host: string;
+	databaseUrl: URL;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 	const port = Number(env.PORT ?? 3000);
 	const host = env.HOST ?? 'localhost';
+	let databaseUrl: URL;
+
+	if (!env.DATABASE_URL) {
+		throw new Error('Empty database url');
+	}
+
+	try {
+		databaseUrl = new URL(env.DATABASE_URL ?? '');
+	} catch {
+		throw new Error('Invalid database url');
+	}
+
+	if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol)) {
+		throw new Error('Invalid database protocol');
+	}
 
 	if (!Number.isInteger(port) || port < 1 || port > 65535) {
 		throw new Error('Invalid port');
@@ -24,5 +40,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 	return {
 		port,
 		host,
+		databaseUrl,
 	};
 }

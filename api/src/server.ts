@@ -1,8 +1,10 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
+import { createDb } from './db/database.js';
 
-const app = buildApp();
 const config = loadConfig();
+const db = createDb(config.databaseUrl.toString());
+const app = buildApp(db);
 
 try {
 	await app.listen({ port: config.port, host: config.host });
