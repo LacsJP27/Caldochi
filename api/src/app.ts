@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { healthRoutes } from './routes/health.js';
-import { Database } from './db/types.js';
+import type { Database } from './db/types.js';
 import type { Kysely } from 'kysely';
 
 declare module 'fastify' {
@@ -42,7 +42,6 @@ export function buildApp(db: Kysely<Database>) {
 	});
 
 	app.addHook('onClose', async (instance) => {
-		// Some code
 		await instance.db.destroy();
 	});
 

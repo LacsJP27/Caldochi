@@ -1,16 +1,26 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { Kysely } from 'kysely';
+import type { Database } from './db/types.js';
 import { buildApp } from './app.js';
+import { createDb } from './db/database.js';
+
+const TEST_DATABASE_URL = 'postgresql://postgres:test@test.co:5432/postgres';
 
 describe('API app', () => {
 	let app: FastifyInstance;
+	let testdb: Kysely<Database>;
+
+	beforeEach(() => {
+		testdb = createDb(TEST_DATABASE_URL);
+	});
 
 	afterEach(async () => {
 		await app?.close();
 	});
 
 	it('reports that the API is healthy', async () => {
-		app = buildApp();
+		app = buildApp(testdb);
 
 		const response = await app.inject({
 			method: 'GET',
@@ -22,7 +32,7 @@ describe('API app', () => {
 	});
 
 	it('returns not found for an unknown route', async () => {
-		app = buildApp();
+		app = buildApp(testdb);
 
 		const response = await app.inject({
 			method: 'GET',
@@ -40,7 +50,7 @@ describe('API app', () => {
 	});
 
 	it('returns internal server error for a route that throws', async () => {
-		app = buildApp();
+		app = buildApp(testdb);
 		app.get('/api/test-error', async () => {
 			throw new Error('Simulated error');
 		});

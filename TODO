@@ -6,7 +6,7 @@ Todo: App Scaffolding
         ✔ rls policies @started(26-09-27 15:13) @done(26-09-27 20:26) @lasted(5h13m13s)
         ✔ grant table priveleges @started(26-09-27 20:29) @done(26-09-27 20:38) @lasted(9m44s)
         ✔ security verification @started(26-09-27 20:46) @done(26-09-27 20:46) @lasted(50s)
-    ☐ kysely database connection
+    ✔ kysely database connection @done(26-10-25 13:12)
     ☐ supabase auth verification + RLS
     ☐ first authenticated API route
 ☐ Docker container
