@@ -1,15 +1,27 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { generateKeyPair } from 'jose';
 import type { FastifyInstance } from 'fastify';
 import type { Kysely } from 'kysely';
 import type { Database } from './db/types.js';
 import { buildApp } from './app.js';
 import { createDb } from './db/database.js';
+import type { AuthPluginOptions } from './auth/plugin.js';
 
 const TEST_DATABASE_URL = 'postgresql://postgres:test@test.co:5432/postgres';
 
 describe('API app', () => {
 	let app: FastifyInstance;
 	let testdb: Kysely<Database>;
+	let auth: AuthPluginOptions;
+
+	beforeAll(async () => {
+		const keys = await generateKeyPair('ES256');
+		auth = {
+			issuer: 'https://test.supabase.co/auth/v1',
+			audience: 'authenticated',
+			keys: keys.publicKey,
+		};
+	});
 
 	beforeEach(() => {
 		testdb = createDb(TEST_DATABASE_URL);
@@ -20,7 +32,7 @@ describe('API app', () => {
 	});
 
 	it('reports that the API is healthy', async () => {
-		app = buildApp(testdb);
+		app = buildApp(testdb, auth);
 
 		const response = await app.inject({
 			method: 'GET',
@@ -32,7 +44,7 @@ describe('API app', () => {
 	});
 
 	it('returns not found for an unknown route', async () => {
-		app = buildApp(testdb);
+		app = buildApp(testdb, auth);
 
 		const response = await app.inject({
 			method: 'GET',
@@ -50,7 +62,7 @@ describe('API app', () => {
 	});
 
 	it('returns internal server error for a route that throws', async () => {
-		app = buildApp(testdb);
+		app = buildApp(testdb, auth);
 		app.get('/api/test-error', async () => {
 			throw new Error('Simulated error');
 		});
