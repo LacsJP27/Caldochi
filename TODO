@@ -21,11 +21,11 @@ Todo: App Scaffolding
             ✔ mismatched project ref throws @started(26-10-29 15:49) @done(26-10-29 22:22) @lasted(6h33m19s)
             ✔ tests: missing, invalid, valid @done(26-10-30 09:05)
             ✔ update existing config tests for the new required var @done(26-10-30 09:05)
-        ☐ step 2: verify module in src/auth/
-            ☐ install jose
-            ☐ verify function: token + issuer/audience/key source in, claims out or throw
-            ☐ tests with a local key pair: valid, expired, forged, wrong aud/iss
-        ☐ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public)
+        ✔ step 2: verify module in src/auth/ @started(26-11-05 07:40) @done(26-11-05 11:41) @lasted(4h1m47s)
+            ✔ install jose @started(26-11-05 07:40) @done(26-11-05 07:40) @lasted(22s)
+            ✔ verify function: token + issuer/audience/key source in, claims out or throw @started(26-11-05 07:40) @done(26-11-05 07:40) @lasted(20s)
+            ✔ tests with a local key pair: valid, expired, forged, wrong aud/iss @started(26-11-05 11:41) @done(26-11-05 11:41) @lasted(18s)
+        ☐ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public) @started(26-11-05 11:41)
         ☐ step 4: plugin tests via app.inject (valid, expired, forged, missing/malformed header)
         ☐ step 5: withUserTx helper (set_config role + jwt claims, transaction-local)
         ☐ step 6: RLS tests (user A can't see user B's rows, role resets after transaction)
@@ -35,8 +35,6 @@ Todo: App Scaffolding
 ☐ CI/CD Pipeline
 
 Todo: Build Database
-
-Todo: Set up Authentication
 
 Todo: Implement Calendar Backend
 
