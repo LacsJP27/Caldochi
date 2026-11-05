@@ -3,7 +3,7 @@ import { loadConfig } from './config.js';
 import { createDb } from './db/database.js';
 
 const config = loadConfig();
-const db = createDb(config.databaseUrl.toString());
+const db = createDb(config.dbUrl.toString());
 const app = buildApp(db);
 
 try {

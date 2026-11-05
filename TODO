@@ -7,7 +7,28 @@ Todo: App Scaffolding
         ✔ grant table priveleges @started(26-09-27 20:29) @done(26-09-27 20:38) @lasted(9m44s)
         ✔ security verification @started(26-09-27 20:46) @done(26-09-27 20:46) @lasted(50s)
     ✔ kysely database connection @done(26-10-25 13:12)
-    ☐ supabase auth verification + RLS
+    ☐ supabase auth verification + RLS @started(26-10-25 13:19)
+        ✔ step 0: confirm signing keys @started(26-10-25 13:49) @done(26-10-25 14:08) @lasted(19m11s)
+            ✔ check key type in Project Settings → JWT Keys (ECC P-256? legacy HS256 still listed?) @done(26-10-25 13:49)
+            ✔ open the JWKS URL and note kty, crv, alg, kid @done(26-10-25 13:52)
+            ✔ get a real access token from a signed-in session @done(26-10-25 14:04)
+            ✔ decode it locally (not jwt.io): header alg/kid, payload iss, aud, sub, role, exp @done(26-10-25 14:04)
+            ✔ record findings in CLAUDE.md open questions @done(26-10-25 14:08)
+        ✔ step 1: config @done(26-10-30 09:05)
+            ✔ add SUPABASE_URL to .env and AppConfig @started(26-10-27 20:58) @done(26-10-27 20:58) @lasted(4s)
+            ✔ validate in loadConfig (present, parseable, https:) @started(26-10-29 15:31) @done(26-10-29 22:21) @lasted(6h50m55s)
+            ✔ decide one place that derives issuer + JWKS URL @started(26-10-29 22:22) @done(26-10-29 22:22) @lasted(11s)
+            ✔ mismatched project ref throws @started(26-10-29 15:49) @done(26-10-29 22:22) @lasted(6h33m19s)
+            ✔ tests: missing, invalid, valid @done(26-10-30 09:05)
+            ✔ update existing config tests for the new required var @done(26-10-30 09:05)
+        ☐ step 2: verify module in src/auth/
+            ☐ install jose
+            ☐ verify function: token + issuer/audience/key source in, claims out or throw
+            ☐ tests with a local key pair: valid, expired, forged, wrong aud/iss
+        ☐ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public)
+        ☐ step 4: plugin tests via app.inject (valid, expired, forged, missing/malformed header)
+        ☐ step 5: withUserTx helper (set_config role + jwt claims, transaction-local)
+        ☐ step 6: RLS tests (user A can't see user B's rows, role resets after transaction)
     ☐ first authenticated API route
 ☐ Docker container
 ☐ Host with Fly.io
