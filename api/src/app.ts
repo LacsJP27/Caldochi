@@ -3,6 +3,7 @@ import { healthRoutes } from './routes/health.js';
 import { authPlugin, type AuthPluginOptions } from './auth/plugin.js';
 import type { Database } from './db/types.js';
 import type { Kysely } from 'kysely';
+import { meRoutes } from './routes/me.js';
 
 declare module 'fastify' {
 	interface FastifyInstance {
@@ -23,7 +24,7 @@ export function buildApp(db: Kysely<Database>, auth: AuthPluginOptions) {
 	app.register(
 		async (protectedApp) => {
 			await protectedApp.register(authPlugin, auth);
-			// Register user-owned routes here.
+			await protectedApp.register(meRoutes);
 		},
 		{ prefix: '/api' },
 	);

@@ -1,39 +1,19 @@
 import { beforeAll, describe, it, expect } from 'vitest';
-import { generateKeyPair, SignJWT, type JWTPayload } from 'jose';
+import { generateKeyPair } from 'jose';
 import { verifyAccessToken } from './verify.js';
+import {
+	TEST_AUDIENCE as AUDIENCE,
+	TEST_ISSUER as ISSUER,
+	nowSeconds,
+	signTestToken as sign,
+	testClaims as claims,
+} from './test-helpers.js';
 
 describe('JWT verify', () => {
 	let keys: CryptoKeyPair;
 	beforeAll(async () => {
 		keys = await generateKeyPair('ES256');
 	});
-
-	const ISSUER = 'https://test.supabase.co/auth/v1';
-	const AUDIENCE = 'authenticated';
-
-	// JWT times are in seconds, not milliseconds
-	function nowSeconds() {
-		return Math.floor(Date.now() / 1000);
-	}
-
-	function claims(overrides: JWTPayload = {}): JWTPayload {
-		const now = nowSeconds();
-		return {
-			iss: ISSUER,
-			aud: AUDIENCE,
-			sub: 'user-123',
-			role: 'authenticated',
-			iat: now,
-			exp: now + 3600,
-			...overrides,
-		};
-	}
-
-	function sign(payload: JWTPayload, privateKey: CryptoKey) {
-		return new SignJWT(payload)
-			.setProtectedHeader({ alg: 'ES256' })
-			.sign(privateKey);
-	}
 
 	// Verifies against the test key pair with the expected issuer and audience.
 	function verify(token: string) {

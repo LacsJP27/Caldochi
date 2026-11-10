@@ -25,9 +25,10 @@ Todo: App Scaffolding
             ✔ install jose @started(26-11-05 07:40) @done(26-11-05 07:40) @lasted(22s)
             ✔ verify function: token + issuer/audience/key source in, claims out or throw @started(26-11-05 07:40) @done(26-11-05 07:40) @lasted(20s)
             ✔ tests with a local key pair: valid, expired, forged, wrong aud/iss @started(26-11-05 11:41) @done(26-11-05 11:41) @lasted(18s)
-        ☐ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public) @started(26-11-05 11:41)
-        ☐ step 4: plugin tests via app.inject (valid, expired, forged, missing/malformed header)
+        ✔ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public) @started(26-11-05 11:41) @done(26-11-05 15:56) @lasted(4h15m27s)
+        ✔ step 4: plugin tests via app.inject (valid, expired, forged, missing/malformed header) @started(26-11-06 16:19) @done(26-11-06 16:19) @lasted(56s)
         ☐ step 5: withUserTx helper (set_config role + jwt claims, transaction-local)
+        // for the Database rls policies to take affect
         ☐ step 6: RLS tests (user A can't see user B's rows, role resets after transaction)
     ☐ first authenticated API route
 ☐ Docker container
