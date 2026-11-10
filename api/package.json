@@ -8,6 +8,7 @@
 		"dev": "tsx watch src/server.ts",
 		"start": "node dist/server.js",
 		"test": "vitest run",
+		"test:db": "vitest run --config vitest.db.config.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

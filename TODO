@@ -27,9 +27,9 @@ Todo: App Scaffolding
             ✔ tests with a local key pair: valid, expired, forged, wrong aud/iss @started(26-11-05 11:41) @done(26-11-05 11:41) @lasted(18s)
         ✔ step 3: Fastify auth plugin (bearer header, 401 envelope, request.user, healthz stays public) @started(26-11-05 11:41) @done(26-11-05 15:56) @lasted(4h15m27s)
         ✔ step 4: plugin tests via app.inject (valid, expired, forged, missing/malformed header) @started(26-11-06 16:19) @done(26-11-06 16:19) @lasted(56s)
-        ☐ step 5: withUserTx helper (set_config role + jwt claims, transaction-local)
+        ✔ step 5: withUserTx helper (set_config role + jwt claims, transaction-local) @done(26-11-10 11:10)
         // for the Database rls policies to take affect
-        ☐ step 6: RLS tests (user A can't see user B's rows, role resets after transaction)
+        ✔ step 6: RLS tests (user A can't see user B's rows, role resets after transaction) @done(26-11-10 11:10)
     ☐ first authenticated API route
 ☐ Docker container
 ☐ Host with Fly.io
