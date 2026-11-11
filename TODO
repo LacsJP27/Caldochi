@@ -32,7 +32,7 @@ Todo: App Scaffolding
         ✔ step 6: RLS tests (user A can't see user B's rows, role resets after transaction) @done(26-11-10 11:10)
     ✔ first authenticated API route (GET /api/calendars) @done(26-11-11 10:33)
 ☐ Docker container
-    ☐ step 1: graceful shutdown in server.ts (SIGTERM/SIGINT -> app.close() + destroy Kysely pool), with a test
+    ✔ step 1: graceful shutdown in server.ts (SIGTERM/SIGINT -> app.close() + destroy Kysely pool), with a test @done(26-11-11 10:45)
     ☐ step 2: pick one lockfile source of truth (root workspace vs api/package-lock.json) so npm ci works in the build
     ☐ step 3: Dockerfile + .dockerignore
         ☐ multi-stage: build stage (npm ci, tsc) -> runtime stage (dist/ + prod deps only)
