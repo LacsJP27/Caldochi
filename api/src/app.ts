@@ -4,6 +4,7 @@ import { authPlugin, type AuthPluginOptions } from './auth/plugin.js';
 import type { Database } from './db/types.js';
 import type { Kysely } from 'kysely';
 import { meRoutes } from './routes/me.js';
+import { calendarRoute } from './routes/calendar.js';
 
 declare module 'fastify' {
 	interface FastifyInstance {
@@ -25,6 +26,7 @@ export function buildApp(db: Kysely<Database>, auth: AuthPluginOptions) {
 		async (protectedApp) => {
 			await protectedApp.register(authPlugin, auth);
 			await protectedApp.register(meRoutes);
+			await protectedApp.register(calendarRoute);
 		},
 		{ prefix: '/api' },
 	);

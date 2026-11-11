@@ -20,9 +20,6 @@ export function withUserTx<T>(
 	fn: (trx: Transaction<Database>) => Promise<T>,
 ): Promise<T> {
 	return db.transaction().execute(async (trx) => {
-		// One round trip. The role is a fixed literal and never taken from the
-		// token's `role` claim. The claims come from the request, so they go in
-		// as a bind parameter ($1), never spliced into the SQL text.
 		await sql`
 			select
 				set_config('role', 'authenticated', true),
