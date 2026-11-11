@@ -1,13 +1,13 @@
 Todo: App Scaffolding
 ✔ Vite + React Scaffold @done(26-09-22 18:43)
 ✔ Fastify API package scaffold @done(26-09-23)
-☐ API routes, auth, and database integration @started(26-09-23 10:57)
+✔ API routes, auth, and database integration @started(26-09-23 10:57) @done(26-11-11 10:35) @lasted(7w38m19s)
     ✔ database schema + migration @started(26-09-25 16:15) @done(26-09-27 20:46) @lasted(2d4h31m57s)
         ✔ rls policies @started(26-09-27 15:13) @done(26-09-27 20:26) @lasted(5h13m13s)
         ✔ grant table priveleges @started(26-09-27 20:29) @done(26-09-27 20:38) @lasted(9m44s)
         ✔ security verification @started(26-09-27 20:46) @done(26-09-27 20:46) @lasted(50s)
     ✔ kysely database connection @done(26-10-25 13:12)
-    ☐ supabase auth verification + RLS @started(26-10-25 13:19)
+    ✔ supabase auth verification + RLS @started(26-10-25 13:19) @done(26-11-11 10:34) @lasted(2w2d22h15m53s)
         ✔ step 0: confirm signing keys @started(26-10-25 13:49) @done(26-10-25 14:08) @lasted(19m11s)
             ✔ check key type in Project Settings → JWT Keys (ECC P-256? legacy HS256 still listed?) @done(26-10-25 13:49)
             ✔ open the JWKS URL and note kty, crv, alg, kid @done(26-10-25 13:52)
@@ -30,8 +30,20 @@ Todo: App Scaffolding
         ✔ step 5: withUserTx helper (set_config role + jwt claims, transaction-local) @done(26-11-10 11:10)
         // for the Database rls policies to take affect
         ✔ step 6: RLS tests (user A can't see user B's rows, role resets after transaction) @done(26-11-10 11:10)
-    ☐ first authenticated API route
+    ✔ first authenticated API route (GET /api/calendars) @done(26-11-11 10:33)
 ☐ Docker container
+    ☐ step 1: graceful shutdown in server.ts (SIGTERM/SIGINT -> app.close() + destroy Kysely pool), with a test
+    ☐ step 2: pick one lockfile source of truth (root workspace vs api/package-lock.json) so npm ci works in the build
+    ☐ step 3: Dockerfile + .dockerignore
+        ☐ multi-stage: build stage (npm ci, tsc) -> runtime stage (dist/ + prod deps only)
+        ☐ pin Node version, run as non-root node user
+        ☐ .dockerignore: node_modules, .env, dist
+        ☐ HOST=0.0.0.0 and PORT from env inside the container
+    ☐ step 4: run locally (docker build, docker run --env-file api/.env -p 3000:3000)
+        ☐ hit /api/healthz
+        ☐ hit /api/calendars with a real token
+        ☐ confirm missing/bad config crashes at startup with a clear log line
+        ☐ docker stop shuts down cleanly (no 10s force-kill)
 ☐ Host with Fly.io
 ☐ CI/CD Pipeline
 

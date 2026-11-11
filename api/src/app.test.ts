@@ -178,4 +178,33 @@ describe('API app', () => {
 			expect(response.statusCode).toBe(200);
 		});
 	});
+
+	// The happy path needs a real database: see routes/calendar.db.test.ts.
+	describe('GET /api/calendars (protected)', () => {
+		beforeEach(() => {
+			app = buildApp(testdb, auth);
+		});
+
+		it('rejects a request with no Authorization header', async () => {
+			const response = await app.inject({ method: 'GET', url: '/api/calendars' });
+
+			expect(response.statusCode).toBe(401);
+			expect(response.headers['www-authenticate']).toBe('Bearer');
+			expect(response.json().error.code).toBe('UNAUTHORIZED');
+		});
+
+		it('rejects a token signed by a different key', async () => {
+			const attacker = await generateKeyPair('ES256');
+			const token = await signTestToken(testClaims(), attacker.privateKey);
+
+			const response = await app.inject({
+				method: 'GET',
+				url: '/api/calendars',
+				headers: { authorization: `Bearer ${token}` },
+			});
+
+			expect(response.statusCode).toBe(401);
+			expect(response.json().error.code).toBe('UNAUTHORIZED');
+		});
+	});
 });

@@ -5,7 +5,7 @@
 
 > Keep this section current. When work moves to a new subject, update it in the same session: move the finished item to "Recently completed" (keep only the last few), and rewrite "Working on", "Next step", and "Open questions".
 
-**Working on:** First authenticated API route. Auth verification + RLS (steps 0–6) is done; the route is the first real use of `withUserTx`.
+**Working on:** Nothing in progress. Auth verification + RLS (steps 0–6) and the first authenticated route (`GET /api/calendars`) are done; pick the next item below.
 
 **Design so far:**
 
@@ -32,7 +32,9 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 - The `iss` check rejects tokens from other signers but can't catch a wrong `SUPABASE_URL`, since issuer and JWKS come from the same value. `loadConfig` therefore cross-checks the project ref in `SUPABASE_URL` against `DATABASE_URL` (direct `db.<ref>.supabase.co` host or pooler `postgres.<ref>` username) and fails at startup on a mismatch.
 - Supabase caches the JWKS at its edge for 10 minutes; wait at least 20 minutes after rotating or revoking keys (Supabase docs, signing keys guide).
 
-**Next step:** `GET /api/calendars` through `withUserTx` (all queries on `trx`, never `app.db`), with `app.inject` tests for the auth failures and a DB test that it returns only the caller's calendars. See TODO.
+**Next step:** choose between the shared error envelope (Next Up; the auth plugin, 404, and 500 bodies are already hand-built in the same shape) and the Docker container (next in TODO). Also pending: a migration adding `CREATE INDEX ON calendars (owner_id)`, since the RLS predicate filters on it.
+
+**Route pattern (from `GET /api/calendars`):** read `request.user` into a local `const` and throw if null (500, not a silent 200); run every query on `trx` inside `withUserTx`, with no `owner_id` filter (RLS is the only ownership rule); select explicit public columns; give lists a stable `orderBy` ending in `id`; return a wrapped object (`{ calendars: [...] }`, empty array when none).
 
 **Database tests:**
 
@@ -49,10 +51,10 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 
 **Recently completed:**
 
+- 2026-11-11: `GET /api/calendars` (`routes/calendar.ts`). `app.inject` 401 tests in `app.test.ts`; `routes/calendar.db.test.ts` signs real tokens for seeded users and checks own-rows-only, ordering (default, then name), exact response fields, and `{ calendars: [] }` for a user with none.
 - 2026-11-10: steps 5–6. `withUserTx` in `src/db/user-tx.ts` (one `select` with two transaction-local `set_config` calls, claims as a bind parameter); 8 RLS tests in `user-tx.db.test.ts` (postgres bypass, `auth.uid()` = sub, own rows only, cross-user insert rejected with 42501, cross-user update hits 0 rows, role/claims reset after commit and rollback).
 - 2026-11-06: steps 3–4. `authPlugin` (Bearer parsing, 401 envelope with `WWW-Authenticate`, `request.user`, JWKS/network errors become 500, never logs tokens), `GET /api/me`, shared `auth/test-helpers.ts`, `app.inject` tests (valid, missing/malformed header, non-JWT, expired, forged, healthz stays public).
 - 2026-11-05: step 2. `verifyAccessToken` in `src/auth/verify.ts` with `jose` (ES256 pinned), tests from a local key pair: valid, expired, forged, wrong `aud`/`iss`.
-- 2026-10-30: `SUPABASE_URL` config. Validation (present, parseable, `https:`, `<ref>.supabase.co`), project-ref cross-check against `DATABASE_URL`, `config.auth.issuer`/`jwksUrl` derivation, tests including exact-string issuer checks.
 
 ## Project Overview
 
@@ -82,6 +84,7 @@ The repository is moving toward a monorepo with a Vite React SPA, a Fastify API,
                               |
                               +--> /api/healthz        (public)
                               +--> /api/me             (auth plugin, JWT via Supabase JWKS)
+                              +--> /api/calendars      (auth plugin + withUserTx, RLS)
 ```
 
 **Directory structure:**
