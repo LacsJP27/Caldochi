@@ -1,11 +1,11 @@
 # CLAUDE.md
-> Last updated: 2026-11-12 | Session: 5
+> Last updated: 2026-11-12 | Session: 6
 
 ## Current Focus
 
 > Keep this section current. When work moves to a new subject, update it in the same session: move the finished item to "Recently completed" (keep only the last few), and rewrite "Working on", "Next step", and "Open questions".
 
-**Working on:** Nothing in progress. The API Docker image is done and verified locally; next in TODO is hosting on Fly.io.
+**Working on:** Nothing in progress. The API is deployed on Fly.io and verified end to end; next in TODO is the CI/CD pipeline.
 
 **Design so far:**
 
@@ -32,7 +32,7 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 - The `iss` check rejects tokens from other signers but can't catch a wrong `SUPABASE_URL`, since issuer and JWKS come from the same value. `loadConfig` therefore cross-checks the project ref in `SUPABASE_URL` against `DATABASE_URL` (direct `db.<ref>.supabase.co` host or pooler `postgres.<ref>` username) and fails at startup on a mismatch.
 - Supabase caches the JWKS at its edge for 10 minutes; wait at least 20 minutes after rotating or revoking keys (Supabase docs, signing keys guide).
 
-**Next step:** deploy the image to Fly.io (`fly.toml` with `internal_port = 3000`, `DATABASE_URL`/`SUPABASE_URL` as Fly secrets, `/api/healthz` health check, `kill_timeout` above the 4 s shutdown timeout). The shared error envelope (Next Up) is still open. Also pending: a migration adding `CREATE INDEX ON calendars (owner_id)`, since the RLS predicate filters on it.
+**Next step:** CI/CD pipeline (GitHub Actions: `npm ci`, typecheck, `npm test`, then `fly deploy` on `main` with a `FLY_API_TOKEN` secret; decide whether `npm run test:db` runs in CI against a Supabase stack). The shared error envelope (Next Up) is still open. Also pending: a migration adding `CREATE INDEX ON calendars (owner_id)`, since the RLS predicate filters on it.
 
 **Route pattern (from `GET /api/calendars`):** read `request.user` into a local `const` and throw if null (500, not a silent 200); run every query on `trx` inside `withUserTx`, with no `owner_id` filter (RLS is the only ownership rule); select explicit public columns; give lists a stable `orderBy` ending in `id`; return a wrapped object (`{ calendars: [...] }`, empty array when none).
 
@@ -51,10 +51,10 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 
 **Recently completed:**
 
+- 2026-11-12: Fly.io hosting. Root `fly.toml` (`dockerfile = "api/Dockerfile"`, region `yyz`, `internal_port = 3000`, `kill_signal = "SIGTERM"`, `kill_timeout = "10s"`, HTTP check on `/api/healthz`, auto stop/start with `min_machines_running = 0`). Secrets via `fly secrets import < api/.env`. Verified at `https://caldochi-api.fly.dev`: healthz 200, `/api/calendars` 401 without a token and 200 with a real token (first request ~776 ms: JWKS fetch + first pooler connection). Deploy with `fly deploy` from the repo root; pause with `fly scale count 0`.
 - 2026-11-12: Docker container. `api/Dockerfile` (multi-stage on `node:24-slim`: build stage runs `npm ci` + `tsc`, runtime stage has `dist/` + prod deps, `USER node`, `HOST=0.0.0.0`, exec-form `CMD`); root `.dockerignore` as an allowlist. Build from the repo root: `docker build -f api/Dockerfile -t caldochi-api .`; run with `docker run --rm --env-file api/.env -p 3000:3000 caldochi-api`. Graceful shutdown in `src/shutdown.ts` (SIGTERM/SIGINT -> `app.close()`, exit 1 after 4 s). Root `package-lock.json` is now the only lockfile.
 - 2026-11-11: `GET /api/calendars` (`routes/calendar.ts`). `app.inject` 401 tests in `app.test.ts`; `routes/calendar.db.test.ts` signs real tokens for seeded users and checks own-rows-only, ordering (default, then name), exact response fields, and `{ calendars: [] }` for a user with none.
 - 2026-11-10: steps 5–6. `withUserTx` in `src/db/user-tx.ts` (one `select` with two transaction-local `set_config` calls, claims as a bind parameter); 8 RLS tests in `user-tx.db.test.ts` (postgres bypass, `auth.uid()` = sub, own rows only, cross-user insert rejected with 42501, cross-user update hits 0 rows, role/claims reset after commit and rollback).
-- 2026-11-06: steps 3–4. `authPlugin` (Bearer parsing, 401 envelope with `WWW-Authenticate`, `request.user`, JWKS/network errors become 500, never logs tokens), `GET /api/me`, shared `auth/test-helpers.ts`, `app.inject` tests (valid, missing/malformed header, non-JWT, expired, forged, healthz stays public).
 
 ## Project Overview
 
@@ -87,6 +87,8 @@ The repository is moving toward a monorepo with a Vite React SPA, a Fastify API,
                               +--> /api/healthz        (public)
                               +--> /api/me             (auth plugin, JWT via Supabase JWKS)
                               +--> /api/calendars      (auth plugin + withUserTx, RLS)
+
+Deployed: api/Dockerfile image on Fly.io (caldochi-api.fly.dev, region yyz) -> Supabase session pooler
 ```
 
 **Directory structure:**
@@ -165,6 +167,14 @@ Decision: `DATABASE_URL` uses the session pooler (`postgres.<ref>@aws-0-<region>
 Rationale: the direct host has only an IPv6 (AAAA) record. Docker Desktop containers and GitHub Actions runners are IPv4-only, so the container failed every query with `getaddrinfo ENOTFOUND` (500 on `/api/calendars`) while `/api/me` (JWKS over IPv4) still worked. Session mode (5432, not transaction mode 6543) keeps one Postgres session per pooled connection, which suits a long-running server with its own `pg` pool.
 
 Gotcha: `SUPABASE_URL` should be the bare origin. The API ignores any path (`new URL('/auth/v1…', base)`), but shell scripts that concatenate `$SUPABASE_URL/auth/v1/...` hit PostgREST (`PGRST125`) if it ends in `/rest/v1/`.
+
+**2026-11-12 — Host the API on Fly.io in `yyz`**
+
+Decision: `fly.toml` lives at the repo root (the Docker build context), region `yyz` (Toronto), `kill_signal = "SIGTERM"`, `kill_timeout = "10s"`.
+
+Rationale: Supabase is in `ca-central-1` (Montreal); `yul` is deprecated on Fly, so `yyz` is the nearest region. Fly's default `kill_signal` is SIGINT and default `kill_timeout` is 5 s; setting both explicitly makes the shutdown contract visible and leaves margin over the 4 s timeout in `shutdown.ts`.
+
+Gotcha: the `/api/healthz` check never touches the database, so a wrong `DATABASE_URL` still passes it; verify a deploy with an authenticated `/api/calendars` call. `fly machine stop` alone is undone by `auto_start_machines` on the next request; use `fly scale count 0` to keep it down. Use `fly apps create` rather than `fly launch`, which rewrites `fly.toml`.
 
 ---
 

@@ -44,7 +44,7 @@ Todo: App Scaffolding
         ✔ hit /api/calendars with a real token (needed the IPv4 session pooler URL) @done(26-11-12 13:07)
         ✔ confirm missing/bad config crashes at startup with a clear log line @done(26-11-12 13:15)
         ✔ docker stop shuts down cleanly (no 10s force-kill) @done(26-11-12 13:15)
-☐ Host with Fly.io
+✔ Host with Fly.io @done(26-11-12 15:21)
 ☐ CI/CD Pipeline
 
 Todo: Build Database
