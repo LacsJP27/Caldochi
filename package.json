@@ -10,6 +10,7 @@
 		"dev:web": "npm --workspace web run dev",
 		"build": "npm run build --workspaces",
 		"test": "npm --workspace @caldochi/api test",
+		"test:db": "npm --workspace @caldochi/api run test:db",
 		"typecheck": "npm --workspace @caldochi/api run typecheck"
 	}
 }

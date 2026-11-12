@@ -1,11 +1,11 @@
 # CLAUDE.md
-> Last updated: 2026-11-10 | Session: 4
+> Last updated: 2026-11-12 | Session: 5
 
 ## Current Focus
 
 > Keep this section current. When work moves to a new subject, update it in the same session: move the finished item to "Recently completed" (keep only the last few), and rewrite "Working on", "Next step", and "Open questions".
 
-**Working on:** Nothing in progress. Auth verification + RLS (steps 0–6) and the first authenticated route (`GET /api/calendars`) are done; pick the next item below.
+**Working on:** Nothing in progress. The API Docker image is done and verified locally; next in TODO is hosting on Fly.io.
 
 **Design so far:**
 
@@ -32,13 +32,13 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 - The `iss` check rejects tokens from other signers but can't catch a wrong `SUPABASE_URL`, since issuer and JWKS come from the same value. `loadConfig` therefore cross-checks the project ref in `SUPABASE_URL` against `DATABASE_URL` (direct `db.<ref>.supabase.co` host or pooler `postgres.<ref>` username) and fails at startup on a mismatch.
 - Supabase caches the JWKS at its edge for 10 minutes; wait at least 20 minutes after rotating or revoking keys (Supabase docs, signing keys guide).
 
-**Next step:** choose between the shared error envelope (Next Up; the auth plugin, 404, and 500 bodies are already hand-built in the same shape) and the Docker container (next in TODO). Also pending: a migration adding `CREATE INDEX ON calendars (owner_id)`, since the RLS predicate filters on it.
+**Next step:** deploy the image to Fly.io (`fly.toml` with `internal_port = 3000`, `DATABASE_URL`/`SUPABASE_URL` as Fly secrets, `/api/healthz` health check, `kill_timeout` above the 4 s shutdown timeout). The shared error envelope (Next Up) is still open. Also pending: a migration adding `CREATE INDEX ON calendars (owner_id)`, since the RLS predicate filters on it.
 
 **Route pattern (from `GET /api/calendars`):** read `request.user` into a local `const` and throw if null (500, not a silent 200); run every query on `trx` inside `withUserTx`, with no `owner_id` filter (RLS is the only ownership rule); select explicit public columns; give lists a stable `orderBy` ending in `id`; return a wrapped object (`{ calendars: [...] }`, empty array when none).
 
 **Database tests:**
 
-- `*.db.test.ts` files run against the local Supabase stack via `npm --prefix api run test:db` (`vitest.db.config.ts`); `npm test` excludes them and needs no Docker.
+- `*.db.test.ts` files run against the local Supabase stack via `npm run test:db` (`vitest.db.config.ts`); `npm test` excludes them and needs no Docker.
 - Setup: Docker Desktop running, then `supabase start` and `supabase db reset` (applies `supabase/migrations/` to the local DB). Default URL `postgresql://postgres:postgres@127.0.0.1:54322/postgres`, overridable with `TEST_DATABASE_URL`; the tests refuse non-local hosts because they write to `auth.users`.
 - Seed as `postgres` with fresh UUID users in `auth.users` (`id`, `email` is enough), then profiles, calendars, events; delete the users in `afterAll` (cascades).
 - Use a pool with `max: 1` when testing that role and claims don't leak, so the follow-up query reuses the same connection.
@@ -51,10 +51,10 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 
 **Recently completed:**
 
+- 2026-11-12: Docker container. `api/Dockerfile` (multi-stage on `node:24-slim`: build stage runs `npm ci` + `tsc`, runtime stage has `dist/` + prod deps, `USER node`, `HOST=0.0.0.0`, exec-form `CMD`); root `.dockerignore` as an allowlist. Build from the repo root: `docker build -f api/Dockerfile -t caldochi-api .`; run with `docker run --rm --env-file api/.env -p 3000:3000 caldochi-api`. Graceful shutdown in `src/shutdown.ts` (SIGTERM/SIGINT -> `app.close()`, exit 1 after 4 s). Root `package-lock.json` is now the only lockfile.
 - 2026-11-11: `GET /api/calendars` (`routes/calendar.ts`). `app.inject` 401 tests in `app.test.ts`; `routes/calendar.db.test.ts` signs real tokens for seeded users and checks own-rows-only, ordering (default, then name), exact response fields, and `{ calendars: [] }` for a user with none.
 - 2026-11-10: steps 5–6. `withUserTx` in `src/db/user-tx.ts` (one `select` with two transaction-local `set_config` calls, claims as a bind parameter); 8 RLS tests in `user-tx.db.test.ts` (postgres bypass, `auth.uid()` = sub, own rows only, cross-user insert rejected with 42501, cross-user update hits 0 rows, role/claims reset after commit and rollback).
 - 2026-11-06: steps 3–4. `authPlugin` (Bearer parsing, 401 envelope with `WWW-Authenticate`, `request.user`, JWKS/network errors become 500, never logs tokens), `GET /api/me`, shared `auth/test-helpers.ts`, `app.inject` tests (valid, missing/malformed header, non-JWT, expired, forged, healthz stays public).
-- 2026-11-05: step 2. `verifyAccessToken` in `src/auth/verify.ts` with `jose` (ES256 pinned), tests from a local key pair: valid, expired, forged, wrong `aud`/`iss`.
 
 ## Project Overview
 
@@ -65,13 +65,15 @@ request -> auth plugin (onRequest): parse Bearer, verify JWT (signature, exp, au
 **How to run locally:**
 
 ```bash
-npm install --prefix api
-npm --prefix api run dev
-npm --prefix api test
-npm --prefix api run build
+npm ci                 # install every workspace from the root package-lock.json
+npm run dev:api
+npm run dev:web
+npm test
+npm run test:db        # needs the local Supabase stack (see Database tests)
+npm run build
 ```
 
-The React client currently runs independently from `web/` with its Vite scripts.
+The root `package-lock.json` is the only lockfile. Run npm from the repo root and target a package with `--workspace`, e.g. `npm install zod --workspace @caldochi/api` (`-D` for dev dependencies). Don't use `npm install --prefix api`: it treats `api/` as a standalone project and recreates `api/package-lock.json` and a nested `api/node_modules`.
 
 ---
 
@@ -156,12 +158,20 @@ Decision: the root `package.json` declares `web/` and `api/` as workspaces and e
 
 Rationale: the repository is a monorepo with separate deployable concerns; root commands make that structure easier to operate without hiding package ownership.
 
+**2026-11-12 — Use the Supabase session pooler for `DATABASE_URL`**
+
+Decision: `DATABASE_URL` uses the session pooler (`postgres.<ref>@aws-0-<region>.pooler.supabase.com:5432`), not the direct host (`db.<ref>.supabase.co`).
+
+Rationale: the direct host has only an IPv6 (AAAA) record. Docker Desktop containers and GitHub Actions runners are IPv4-only, so the container failed every query with `getaddrinfo ENOTFOUND` (500 on `/api/calendars`) while `/api/me` (JWKS over IPv4) still worked. Session mode (5432, not transaction mode 6543) keeps one Postgres session per pooled connection, which suits a long-running server with its own `pg` pool.
+
+Gotcha: `SUPABASE_URL` should be the bare origin. The API ignores any path (`new URL('/auth/v1…', base)`), but shell scripts that concatenate `$SUPABASE_URL/auth/v1/...` hit PostgREST (`PGRST125`) if it ends in `/rest/v1/`.
+
 ---
 
 ## Next Up
 
 - [ ] Add shared API error handling and a consistent error envelope (the auth plugin's 401 body is the first one to switch over).
-- [ ] Normalize dependency installation around the root workspace lockfile.
+- [x] Normalize dependency installation around the root workspace lockfile.
 - [ ] Add configuration parsing for the allowed web origin (CORS). `PORT` and `HOST` are already parsed.
 - [x] Add the database schema and first migrations (`supabase/migrations/`).
 - [x] Add auth verification before exposing user-owned data.

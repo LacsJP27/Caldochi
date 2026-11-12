@@ -1,0 +1,11 @@
+# Allowlist: ignore everything, then re-include only what the Dockerfile COPYs.
+*
+!package.json
+!package-lock.json
+!api/package.json
+!api/tsconfig.json
+!api/src
+!web/package.json
+
+# Re-included above via api/src, but not needed in the image.
+api/src/**/*.test.ts

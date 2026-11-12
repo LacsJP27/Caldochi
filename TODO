@@ -31,19 +31,19 @@ Todo: App Scaffolding
         // for the Database rls policies to take affect
         ✔ step 6: RLS tests (user A can't see user B's rows, role resets after transaction) @done(26-11-10 11:10)
     ✔ first authenticated API route (GET /api/calendars) @done(26-11-11 10:33)
-☐ Docker container
+✔ Docker container @done(26-11-12 13:15)
     ✔ step 1: graceful shutdown in server.ts (SIGTERM/SIGINT -> app.close() + destroy Kysely pool), with a test @done(26-11-11 10:45)
-    ☐ step 2: pick one lockfile source of truth (root workspace vs api/package-lock.json) so npm ci works in the build
-    ☐ step 3: Dockerfile + .dockerignore
-        ☐ multi-stage: build stage (npm ci, tsc) -> runtime stage (dist/ + prod deps only)
-        ☐ pin Node version, run as non-root node user
-        ☐ .dockerignore: node_modules, .env, dist
-        ☐ HOST=0.0.0.0 and PORT from env inside the container
-    ☐ step 4: run locally (docker build, docker run --env-file api/.env -p 3000:3000)
-        ☐ hit /api/healthz
-        ☐ hit /api/calendars with a real token
-        ☐ confirm missing/bad config crashes at startup with a clear log line
-        ☐ docker stop shuts down cleanly (no 10s force-kill)
+    ✔ step 2: pick one lockfile source of truth (root workspace vs api/package-lock.json) so npm ci works in the build @done(26-11-11 10:50)
+    ✔ step 3: Dockerfile + .dockerignore @done(26-11-11 11:21)
+        ✔ multi-stage: build stage (npm ci, tsc) -> runtime stage (dist/ + prod deps only) @done(26-11-11 11:21)
+        ✔ pin Node version, run as non-root node user @done(26-11-11 11:21)
+        ✔ .dockerignore: node_modules, .env, dist @done(26-11-11 11:21)
+        ✔ HOST=0.0.0.0 and PORT from env inside the container @done(26-11-11 11:21)
+    ✔ step 4: run locally (docker build, docker run --env-file api/.env -p 3000:3000) @done(26-11-12 13:15)
+        ✔ hit /api/healthz @done(26-11-12 13:07)
+        ✔ hit /api/calendars with a real token (needed the IPv4 session pooler URL) @done(26-11-12 13:07)
+        ✔ confirm missing/bad config crashes at startup with a clear log line @done(26-11-12 13:15)
+        ✔ docker stop shuts down cleanly (no 10s force-kill) @done(26-11-12 13:15)
 ☐ Host with Fly.io
 ☐ CI/CD Pipeline
 

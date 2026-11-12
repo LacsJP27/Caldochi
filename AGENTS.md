@@ -10,13 +10,15 @@
 **How to run locally:**
 
 ```bash
-npm install --prefix api
-npm --prefix api run dev
-npm --prefix api test
-npm --prefix api run build
+npm ci                 # install every workspace from the root package-lock.json
+npm run dev:api
+npm run dev:web
+npm test
+npm run test:db        # needs the local Supabase stack (see Database tests)
+npm run build
 ```
 
-The React client currently runs independently from `web/` with its Vite scripts.
+The root `package-lock.json` is the only lockfile. Run npm from the repo root and target a package with `--workspace`, e.g. `npm install zod --workspace @caldochi/api` (`-D` for dev dependencies). Don't use `npm install --prefix api`: it treats `api/` as a standalone project and recreates `api/package-lock.json` and a nested `api/node_modules`.
 
 ---
 
@@ -98,7 +100,7 @@ Rationale: the repository is a monorepo with separate deployable concerns; root 
 ## Next Up
 
 - [ ] Add shared API error handling and a consistent error envelope.
-- [ ] Normalize dependency installation around the root workspace lockfile.
+- [x] Normalize dependency installation around the root workspace lockfile.
 - [ ] Add configuration parsing for `PORT`, `HOST`, and the allowed web origin.
 - [ ] Add the database package and a first migration only after the HTTP slice is understood.
 - [ ] Add auth verification before exposing user-owned data.
